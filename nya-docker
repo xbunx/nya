@@ -1,0 +1,103 @@
+#!/bin/bash
+
+xt1="Instalación de Docker"
+xt2="Descargando Docker"
+xt3="Instalando Docker..."
+xt4="Version de Docker:"
+xt5="Arquitectura desconocida:"
+xt6="Verificando Dependencias"
+xt7="está instalado."
+
+cnerd="containerd"
+dbp="docker-buildx-plugin"
+dcc="docker-ce-cli"
+dcere="docker-ce-rootless-extras"
+dce="docker-ce"
+dcp="docker-compose-plugin"
+dsp="docker-scan-plugin"
+ext=".deb"
+
+urlDefault="https://download.docker.com/linux/debian/dists/buster/pool/stable/"
+so='/^ID=/{print $2}'
+ver='/^VERSION_CODENAME=/{print $2}'
+iOS(){
+    awk -F'=' "$1" /etc/os-release | tr -d '"'
+}
+so=$(iOS "$so")
+ver=$(iOS "$ver")
+
+archi=$(uname -m)
+if [[ $archi == "x86_64" ]]; then
+    ARQ="amd64"
+elif [[ $archi == "aarch64" ]]; then
+    ARQ="arm64"
+else
+    echo "$xt5 $archi"
+fi
+
+case $so in
+    centos|debian|fedora|raspbian|rhel|sles|static|ubuntu)
+        url="https://download.docker.com/linux/$so/dists/$ver/pool/stable"
+        ;;
+    *)
+        url="$urlDefault"
+        ;;
+esac
+URL="$url/$ARQ"
+
+e(){
+    echo -e "\e[1;${1}m${2}\e[0m"
+}
+check() {
+    for name in "$@"; do
+        dpkg -s "$name" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            e 96 "$xt6"
+            e 96 "$name $xt7"
+        else
+            apt install "$name" -y
+        fi
+    done
+}
+D(){
+    echo $URL/$(curl -s $URL/ | 
+    grep -oP '(?<=href=")[^"]*'"$1"'[^"]*\.deb' | 
+    sort -V | 
+    tail -n 1) |  
+    xargs curl -O -J -L 
+}
+I(){
+    dpkg -i $1*$ext
+}
+check "curl" "dbus-user-session"
+apt install iptables -y
+apt --fix-broken install
+
+
+cd ~/
+e 96 "$xt1"
+e 96 "$xt2"
+D $cnerd
+D $dbp
+D $dcc
+D $dcere
+D $dce
+D $dcp
+D $dsp
+
+mkdir dockers
+mv *.deb dockers/
+cd dockers 
+
+e 96 "$xt3"
+I $cnerd
+I $dcc
+I $dce
+I $dbp
+I $dcp
+
+cd .. 
+rm -rf dockers
+
+e 96 "$xt4"
+docker version
