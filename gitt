@@ -1,0 +1,62 @@
+#!/bin/bash
+
+email(){
+if [ -z "$EMAIL" ]; then
+    echo "Error: Revisa tu formato de correo." >&2
+    exit 1
+elif [ $(echo "$EMAIL" | grep -o '@' | wc -l) -ne 1 ]; then
+    echo "Error: Revisa tu formato de correo." >&2
+    exit 1
+fi
+}
+
+case "$1" in
+  "")
+
+echo "Por favor, ingresa tu correo electronico para la clave SSH:"
+read -p "Correo: " EMAIL
+
+email
+
+
+echo "$EMAIL"
+
+ssh-keygen -t ed25519 -C "$EMAIL"
+
+eval "$(ssh-agent -s)"
+
+ssh-add ~/.ssh/id_ed25519
+echo "Pegar la siguiente clave en: https://github.com/settings/keys"
+
+cat ~/.ssh/id_ed25519.pub
+
+
+    ;;
+  "verify")
+ssh -T git@github.com
+    ;;
+  "config")
+git config --global init.defaultBranch main
+git push --set-upstream origin main
+
+echo "Por favor, ingresa tu correo electronico para la config:"
+read -p "Correo: " EMAIL
+email
+
+git config --global user.email "$EMAIL"
+echo "$EMAIL"
+
+echo "Por favor, ingresa tu nombre para la config:"
+read -p "Nombre: " NAME
+#Git ≥ 2.28
+git config --global user.name "$NAME"
+
+echo "$NAME"
+
+cat ~/.gitconfig
+
+    ;;
+  *)
+    echo "Comando no reconocido"
+    ;;
+esac
